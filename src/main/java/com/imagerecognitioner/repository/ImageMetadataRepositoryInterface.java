@@ -12,5 +12,7 @@ public interface ImageMetadataRepositoryInterface {
 
     Optional<ImageMetadata> findById(String imageId);
 
+    Optional<ImageMetadata> findByContentHash(String contentHash);
+
     void deleteById(String imageId);
 }

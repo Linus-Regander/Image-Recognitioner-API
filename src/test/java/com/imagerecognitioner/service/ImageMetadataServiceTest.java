@@ -101,6 +101,32 @@ class ImageMetadataServiceTest {
                 verify(repository).save(existing);
                 reset(repository);
             },
+            "client metadata update cannot replace content hash", () -> {
+                ImageMetadata existing = metadata("img-3", "photo.jpg", "image/jpeg", 10L);
+                existing.setContentHash("original-hash");
+                ImageMetadata patch = new ImageMetadata();
+                patch.setContentHash("new-content-hash");
+                when(repository.findById("img-3")).thenReturn(Optional.of(existing));
+                when(repository.save(existing)).thenReturn(existing);
+
+                metadataService.update("img-3", patch);
+
+                assertEquals("original-hash", existing.getContentHash());
+                reset(repository);
+            },
+            "replacement updates content hash", () -> {
+                ImageMetadata existing = metadata("img-4", "photo.jpg", "image/jpeg", 10L);
+                existing.setContentHash("original-hash");
+                ImageMetadata replacement = new ImageMetadata();
+                replacement.setContentHash("replacement-hash");
+                when(repository.findById("img-4")).thenReturn(Optional.of(existing));
+                when(repository.save(existing)).thenReturn(existing);
+
+                metadataService.updateImageContent("img-4", replacement);
+
+                assertEquals("replacement-hash", existing.getContentHash());
+                reset(repository);
+            },
             "missing metadata", () -> {
                 when(repository.findById("missing")).thenReturn(Optional.empty());
 

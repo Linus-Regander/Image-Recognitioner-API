@@ -15,6 +15,8 @@ API for handling images and using **Amazon Rekognition** for moderating images a
 
 Image metadata is stored in **Amazon DynamoDB**.
 
+Uploaded image content is identified by its exact file bytes with SHA-256 by default (`app.hash.crypto-type` in `application.yml`); SHA-512 is also supported. A custom Spring bean implementing `HashFunc` can provide a different hashing strategy, such as perceptual hashing. The hash is stored in image metadata and indexed to reject duplicate content before upload.
+
 Docker images are stored in Docker Hub, with CI/CD integration via GitHub Actions.
 
 ## Versioning

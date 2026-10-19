@@ -9,6 +9,7 @@ import com.imagerecognitioner.model.image.ImageMetadata;
 import com.imagerecognitioner.model.image.ImageStatus;
 import com.imagerecognitioner.model.image.ImageLabel;
 import com.imagerecognitioner.model.moderation.ModerationResult;
+import com.imagerecognitioner.util.hashing.Hash;
 import com.imagerecognitioner.exception.ImageExceptions;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -17,8 +18,12 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.List;
+import java.util.Objects;
 import java.net.URL;
 import java.time.Duration;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Service for managing images, including uploading to S3 and storing metadata in DynamoDB.
@@ -31,13 +36,15 @@ public class ImageService {
     private final ImageRecognitionService imageRecognitionService;
     private final String keyPrefix;
     private final String bucketName;
+    private final Hash hash;
 
-    public ImageService(ImageStorageService imageStorageService, ImageMetadataService imageMetadataService, ImageRecognitionService imageRecognitionService, AwsProperties awsProperties) {
+    public ImageService(ImageStorageService imageStorageService, ImageMetadataService imageMetadataService, ImageRecognitionService imageRecognitionService, AwsProperties awsProperties, Hash hash) {
         this.imageStorageService = imageStorageService;
         this.imageMetadataService = imageMetadataService;
         this.imageRecognitionService = imageRecognitionService;
         this.keyPrefix = awsProperties.getS3().getKeyPrefix();
         this.bucketName = awsProperties.getS3().getBucketName();
+        this.hash = hash;
     }
 
     /**
@@ -66,6 +73,8 @@ public class ImageService {
     public ImageMetadata publishImage(MultipartFile file, String owner, Float minConfidence) {
         String id = UUID.randomUUID().toString();
         String key = buildKey(owner, id, file.getOriginalFilename());
+        String contentHash = calculateHash(file);
+        ensureContentHashIsUnique(contentHash, null);
 
         try {
             imageStorageService.upload(key, file);
@@ -78,7 +87,7 @@ public class ImageService {
                 throw new ImageExceptions.ImageModerationException(moderationResult.getLabels());
             }
 
-            return imageMetadataService.create(extractMetadata(file, owner, id, key, moderationResult.getLabels()));
+            return imageMetadataService.create(extractMetadata(file, owner, id, key, contentHash, moderationResult.getLabels()));
         } catch (AwsServiceException | SdkClientException e) {
             imageStorageService.delete(key);
             
@@ -96,6 +105,8 @@ public class ImageService {
         ImageMetadata existingMetadata = imageMetadataService.findById(imageId);
         String key = existingMetadata.getS3Key();
         String temporaryKey = buildKey(existingMetadata.getOwner(), imageId, file.getOriginalFilename());
+        String contentHash = calculateHash(file);
+        ensureContentHashIsUnique(contentHash, imageId);
 
         try {
             imageStorageService.upload(temporaryKey, file);
@@ -111,7 +122,8 @@ public class ImageService {
             imageStorageService.replace(key, file);
             imageStorageService.delete(temporaryKey);
 
-            return imageMetadataService.update(imageId, extractMetadata(file, existingMetadata.getOwner(), imageId, key, moderationResult.getLabels()));
+            return imageMetadataService.updateImageContent(imageId,
+                    extractMetadata(file, existingMetadata.getOwner(), imageId, key, contentHash, moderationResult.getLabels()));
         } catch (AwsServiceException | SdkClientException e) {
             imageStorageService.delete(temporaryKey);
 
@@ -162,12 +174,13 @@ public class ImageService {
         imageMetadataService.deleteById(imageId);
     }
 
-    private ImageMetadata extractMetadata(MultipartFile file, String owner, String id, String key, List<ImageLabel> labels) {
+    private ImageMetadata extractMetadata(MultipartFile file, String owner, String id, String key, String contentHash, List<ImageLabel> labels) {
         ImageMetadata metadata = new ImageMetadata();
 
         metadata.setImageId(id);
         metadata.setS3Key(key);
         metadata.setS3Bucket(bucketName);
+        metadata.setContentHash(contentHash);
         metadata.setFileName(file.getOriginalFilename());
         metadata.setContentType(file.getContentType());
         metadata.setSizeBytes(file.getSize());
@@ -177,6 +190,22 @@ public class ImageService {
         metadata.setLabels(labels);
 
         return metadata;
+    }
+
+    private String calculateHash(MultipartFile file) {
+        try (InputStream inputStream = file.getInputStream()) {
+            return hash.hash(inputStream);
+        } catch (IOException | NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Failed to calculate image content hash", e);
+        }
+    }
+
+    private void ensureContentHashIsUnique(String contentHash, String currentImageId) {
+        imageMetadataService.findByContentHash(contentHash)
+                .filter(existing -> !Objects.equals(existing.getImageId(), currentImageId))
+                .ifPresent(existing -> {
+                    throw new ImageExceptions.DuplicateImageException(contentHash);
+                });
     }
 
     private String buildKey(String owner, String id, String originalFilename) {

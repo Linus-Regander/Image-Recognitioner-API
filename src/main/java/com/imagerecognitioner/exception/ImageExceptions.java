@@ -13,6 +13,12 @@ public final class ImageExceptions {
         }
     }
 
+    public static class DuplicateImageException extends RuntimeException {
+        public DuplicateImageException(String contentHash) {
+            super("An image with this content hash already exists: " + contentHash);
+        }
+    }
+
     public static class InvalidImageException extends RuntimeException {
         public InvalidImageException(String message) {
             super(message);

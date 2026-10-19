@@ -7,6 +7,8 @@ import com.imagerecognitioner.model.image.ImageMetadata;
 import com.imagerecognitioner.model.image.ImageStatus;
 import com.imagerecognitioner.model.image.ImageLabel;
 import com.imagerecognitioner.model.moderation.ModerationResult;
+import com.imagerecognitioner.util.hashing.CryptoType;
+import com.imagerecognitioner.util.hashing.Hash;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +58,8 @@ class ImageServiceTest {
         AwsProperties properties = new AwsProperties();
         properties.getS3().setKeyPrefix("images/");
         properties.getS3().setBucketName("image-bucket");
-        imageService = new ImageService(imageStorageService, imageMetadataService, imageRecognitionService, properties);
+        imageService = new ImageService(imageStorageService, imageMetadataService, imageRecognitionService, properties,
+                new Hash(CryptoType.SHA256, null));
         lenient().when(imageRecognitionService.moderateContent(anyString(), anyString(), nullable(Float.class)))
             .thenReturn(new ModerationResult(false, List.of()));
     }
@@ -128,6 +131,8 @@ class ImageServiceTest {
         assertEquals("image/jpeg", actual.getContentType());
         assertEquals(5L, actual.getSizeBytes());
         assertEquals(actualKey, actual.getS3Key());
+        assertEquals("277089d91c0bdf4f2e6862ba7e4a07605119431f5d13f726dd352b06f1b206a9",
+                actual.getContentHash());
         assertEquals(ImageStatus.PENDING, actual.getImageStatus());
         reset(imageStorageService, imageMetadataService);
     }
@@ -155,6 +160,19 @@ class ImageServiceTest {
         verify(imageMetadataService, org.mockito.Mockito.never()).create(any());
     }
 
+    @Test
+    void publishImage_rejectsDuplicateContentBeforeUploading() {
+        MultipartFile file = file("photo.jpg", "image/jpeg", "bytes");
+        ImageMetadata duplicate = metadata("existing-image", "images/alice/existing.jpg", "alice");
+        when(imageMetadataService.findByContentHash(anyString())).thenReturn(java.util.Optional.of(duplicate));
+
+        assertThrows(ImageExceptions.DuplicateImageException.class,
+                () -> imageService.publishImage(file, "alice", null));
+
+        verify(imageStorageService, org.mockito.Mockito.never()).upload(anyString(), any());
+        verify(imageMetadataService, org.mockito.Mockito.never()).create(any());
+    }
+
     private void publishFailure(RuntimeException failure) {
         MultipartFile file = file("photo.png", "image/png", "bytes");
         when(imageMetadataService.create(any(ImageMetadata.class))).thenThrow(failure);
@@ -173,16 +191,17 @@ class ImageServiceTest {
         MultipartFile file = file("new.png", "image/png", "new-bytes");
         ImageMetadata updated = metadata("img-1", existing.getS3Key(), "alice");
         when(imageMetadataService.findById("img-1")).thenReturn(existing);
-        when(imageMetadataService.update(eq("img-1"), any(ImageMetadata.class))).thenReturn(updated);
+        when(imageMetadataService.updateImageContent(eq("img-1"), any(ImageMetadata.class))).thenReturn(updated);
 
         assertSame(updated, imageService.replaceImage(file, "img-1", null));
 
         verify(imageStorageService).replace(existing.getS3Key(), file);
         ArgumentCaptor<ImageMetadata> replacement = ArgumentCaptor.forClass(ImageMetadata.class);
-        verify(imageMetadataService).update(eq("img-1"), replacement.capture());
+        verify(imageMetadataService).updateImageContent(eq("img-1"), replacement.capture());
         assertEquals(existing.getOwner(), replacement.getValue().getOwner());
-        assertEquals("new.png", replacement.getValue().getFileName());
         assertEquals(existing.getS3Key(), replacement.getValue().getS3Key());
+        assertEquals("new.png", replacement.getValue().getFileName());
+        org.junit.jupiter.api.Assertions.assertNotNull(replacement.getValue().getContentHash());
     }
 
     @Test

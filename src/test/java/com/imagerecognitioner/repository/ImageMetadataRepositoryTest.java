@@ -10,6 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.imagerecognitioner.model.image.ImageMetadata;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.DeleteItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
@@ -32,6 +35,15 @@ class ImageMetadataRepositoryTest {
 
     @Mock
     private DynamoDbTable<ImageMetadata> imageMetadataTable;
+
+    @Mock
+    private DynamoDbIndex<ImageMetadata> contentHashIndex;
+
+    @Mock
+    private SdkIterable<Page<ImageMetadata>> queryResults;
+
+    @Mock
+    private Page<ImageMetadata> queryPage;
 
     @Mock
     private PageIterable<ImageMetadata> pages;
@@ -103,6 +115,35 @@ class ImageMetadataRepositoryTest {
                 assertEquals(Optional.empty(), repository.findById("missing"));
                 verifyFindRequest("missing");
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable });
+            });
+
+        runTestCases(testCases);
+    }
+
+    @Test
+    void findByContentHash_returnsFirstMatchingMetadataOrEmpty() {
+        ImageMetadata metadata = metadata("img-1");
+        Map<String, RepositoryTestCase> testCases = Map.of(
+            "matching metadata", () -> {
+                when(imageMetadataTable.index("contentHash-index")).thenReturn(contentHashIndex);
+                when(contentHashIndex.query(org.mockito.ArgumentMatchers.any(QueryConditional.class))).thenReturn(queryResults);
+                when(queryResults.stream()).thenReturn(Stream.of(queryPage));
+                when(queryPage.items()).thenReturn(List.of(metadata));
+
+                assertEquals(Optional.of(metadata), repository.findByContentHash("hash-1"));
+
+                org.mockito.Mockito.verify(contentHashIndex).query(org.mockito.ArgumentMatchers.any(QueryConditional.class));
+                org.mockito.Mockito.reset(imageMetadataTable, contentHashIndex, queryResults, queryPage);
+            },
+            "missing metadata", () -> {
+                when(imageMetadataTable.index("contentHash-index")).thenReturn(contentHashIndex);
+                when(contentHashIndex.query(org.mockito.ArgumentMatchers.any(QueryConditional.class))).thenReturn(queryResults);
+                when(queryResults.stream()).thenReturn(Stream.empty());
+
+                assertEquals(Optional.empty(), repository.findByContentHash("missing"));
+
+                org.mockito.Mockito.verify(contentHashIndex).query(org.mockito.ArgumentMatchers.any(QueryConditional.class));
+                org.mockito.Mockito.reset(imageMetadataTable, contentHashIndex, queryResults, queryPage);
             });
 
         runTestCases(testCases);

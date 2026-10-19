@@ -33,6 +33,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, ex);
     }
 
+    @ExceptionHandler(DuplicateImageException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateImage(DuplicateImageException ex, WebRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request, ex);
+    }
+
     @ExceptionHandler(InvalidImageException.class)
     public ResponseEntity<ErrorResponse> handleInvalid(InvalidImageException ex, WebRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex);
