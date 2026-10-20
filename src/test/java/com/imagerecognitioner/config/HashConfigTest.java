@@ -1,6 +1,6 @@
 package com.imagerecognitioner.config;
 
-import com.imagerecognitioner.util.hashing.CryptoType;
+import com.imagerecognitioner.util.hashing.HashAlgorithm;
 import com.imagerecognitioner.util.hashing.HashFunc;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,9 +14,9 @@ import static org.mockito.Mockito.when;
 
 class HashConfigTest {
     @Test
-    void hash_usesConfiguredCryptoTypeWhenNoCustomFunctionExists() throws Exception {
+    void hash_usesConfiguredAlgorithmWhenNoCustomFunctionExists() throws Exception {
         HashProperties properties = new HashProperties();
-        properties.setCryptoType(CryptoType.SHA512);
+        properties.setHashAlgorithm(HashAlgorithm.SHA512);
         ObjectProvider<HashFunc> hashFuncProvider = mock();
         when(hashFuncProvider.getIfAvailable()).thenReturn(null);
 
@@ -29,7 +29,7 @@ class HashConfigTest {
     @Test
     void hash_prefersProvidedCustomFunction() throws Exception {
         HashProperties properties = new HashProperties();
-        properties.setCryptoType(CryptoType.SHA256);
+        properties.setHashAlgorithm(HashAlgorithm.SHA256);
         ObjectProvider<HashFunc> hashFuncProvider = mock();
         when(hashFuncProvider.getIfAvailable()).thenReturn(inputStream -> "custom");
 

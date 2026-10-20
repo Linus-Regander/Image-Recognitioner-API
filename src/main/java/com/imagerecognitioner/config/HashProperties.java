@@ -1,17 +1,20 @@
 package com.imagerecognitioner.config;
 
-import com.imagerecognitioner.util.hashing.CryptoType;
+import com.imagerecognitioner.util.hashing.HashAlgorithm;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * Configuration properties for hash algorithm selection.
+ */
 @ConfigurationProperties(prefix = "app.hash")
 public class HashProperties {
-    private CryptoType cryptoType = CryptoType.SHA256;
+    private HashAlgorithm hashAlgorithm = HashAlgorithm.SHA256;
 
-    public CryptoType getCryptoType() {
-        return cryptoType;
+    public HashAlgorithm getHashAlgorithm() {
+        return hashAlgorithm;
     }
 
-    public void setCryptoType(CryptoType cryptoType) {
-        this.cryptoType = cryptoType;
+    public void setHashAlgorithm(HashAlgorithm hashAlgorithm) {
+        this.hashAlgorithm = hashAlgorithm;
     }
 }

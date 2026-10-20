@@ -1,16 +1,16 @@
 package com.imagerecognitioner.util.hashing;
 
 /**
- * Enum for type of crypto algorithm.
- * CryptoType
+ * Enum for type of hash algorithm.
+ * HashAlgorithm
  */
-public enum CryptoType {
+public enum HashAlgorithm {
     SHA256("SHA-256"),
     SHA512("SHA-512");
 
     private final String algorithm;
 
-    CryptoType(String algorithm) {
+    HashAlgorithm(String algorithm) {
         this.algorithm = algorithm;
     }
 

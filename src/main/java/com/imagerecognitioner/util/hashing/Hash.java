@@ -9,10 +9,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Objects;
 
+/**
+ * Calculates hashes for input streams using a configured algorithm or custom hash function.
+ */
 public final class Hash {
     private final HashFunc hashFunc;
 
-    public Hash(CryptoType cryptoType, HashFunc hashFunc) {
+    public Hash(HashAlgorithm cryptoType, HashFunc hashFunc) {
         if (hashFunc != null) {
             this.hashFunc = hashFunc;
         } else {
@@ -21,6 +24,13 @@ public final class Hash {
         }
     }
 
+    /**
+     * Calculates the hash of the supplied input stream.
+     * @param inputStream The stream to hash.
+     * @return The calculated hash.
+     * @throws IOException If reading the input stream fails.
+     * @throws NoSuchAlgorithmException If the configured algorithm is unavailable.
+     */
     public String hash(InputStream inputStream) throws IOException, NoSuchAlgorithmException {
         Objects.requireNonNull(inputStream, "inputStream must not be null");
         String result = hashFunc.hash(inputStream);
@@ -30,7 +40,7 @@ public final class Hash {
         return result;
     }
 
-    private static String digest(CryptoType type, InputStream inputStream) throws IOException, NoSuchAlgorithmException {
+    private static String digest(HashAlgorithm type, InputStream inputStream) throws IOException, NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance(type.algorithm());
 
         DigestInputStream dis = new DigestInputStream(inputStream, md);

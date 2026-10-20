@@ -7,7 +7,7 @@ import com.imagerecognitioner.model.image.ImageMetadata;
 import com.imagerecognitioner.model.image.ImageStatus;
 import com.imagerecognitioner.model.image.ImageLabel;
 import com.imagerecognitioner.model.moderation.ModerationResult;
-import com.imagerecognitioner.util.hashing.CryptoType;
+import com.imagerecognitioner.util.hashing.HashAlgorithm;
 import com.imagerecognitioner.util.hashing.Hash;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -59,7 +59,7 @@ class ImageServiceTest {
         properties.getS3().setKeyPrefix("images/");
         properties.getS3().setBucketName("image-bucket");
         imageService = new ImageService(imageStorageService, imageMetadataService, imageRecognitionService, properties,
-                new Hash(CryptoType.SHA256, null));
+                new Hash(HashAlgorithm.SHA256, null));
         lenient().when(imageRecognitionService.moderateContent(anyString(), anyString(), nullable(Float.class)))
             .thenReturn(new ModerationResult(false, List.of()));
     }
@@ -161,16 +161,23 @@ class ImageServiceTest {
     }
 
     @Test
-    void publishImage_rejectsDuplicateContentBeforeUploading() {
+    void publishImage_reusesModerationLabelsForDuplicateContent() {
         MultipartFile file = file("photo.jpg", "image/jpeg", "bytes");
         ImageMetadata duplicate = metadata("existing-image", "images/alice/existing.jpg", "alice");
+        List<ImageLabel> labels = List.of(new ImageLabel("Safe", 99.0f));
+        duplicate.setLabels(labels);
         when(imageMetadataService.findByContentHash(anyString())).thenReturn(java.util.Optional.of(duplicate));
+        ImageMetadata created = metadata("new-image", "images/alice/new-image.jpg", "alice");
+        when(imageMetadataService.create(any(ImageMetadata.class))).thenReturn(created);
 
-        assertThrows(ImageExceptions.DuplicateImageException.class,
-                () -> imageService.publishImage(file, "alice", null));
+        assertSame(created, imageService.publishImage(file, "alice", null));
 
-        verify(imageStorageService, org.mockito.Mockito.never()).upload(anyString(), any());
-        verify(imageMetadataService, org.mockito.Mockito.never()).create(any());
+        verify(imageStorageService).upload(anyString(), any());
+        ArgumentCaptor<ImageMetadata> captured = ArgumentCaptor.forClass(ImageMetadata.class);
+        verify(imageMetadataService).create(captured.capture());
+        assertEquals(labels, captured.getValue().getLabels());
+        verify(imageRecognitionService, org.mockito.Mockito.never())
+                .moderateContent(anyString(), anyString(), nullable(Float.class));
     }
 
     private void publishFailure(RuntimeException failure) {
