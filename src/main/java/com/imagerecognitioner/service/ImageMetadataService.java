@@ -44,6 +44,20 @@ public class ImageMetadataService {
      * @return the updated ImageMetadata object
      */
     public ImageMetadata update(String imageId, ImageMetadata imageMetadata) {
+        return update(imageId, imageMetadata, false);
+    }
+
+    /**
+     * Updates image fields produced by replacing the stored image, including its content hash.
+     * @param imageId the ID of the metadata to update
+     * @param imageMetadata the replacement image metadata
+     * @return the updated metadata
+     */
+    public ImageMetadata updateImageContent(String imageId, ImageMetadata imageMetadata) {
+        return update(imageId, imageMetadata, true);
+    }
+
+    private ImageMetadata update(String imageId, ImageMetadata imageMetadata, boolean updateContentHash) {
         ImageMetadata existing = imageMetadataRepository.findById(imageId)
                 .orElseThrow(() -> new ImageExceptions.ImageMetadataNotFoundException(imageId));
 
@@ -57,6 +71,10 @@ public class ImageMetadataService {
         
         if (imageMetadata.getSizeBytes() != null) {
             existing.setSizeBytes(imageMetadata.getSizeBytes());
+        }
+
+        if (updateContentHash && imageMetadata.getContentHash() != null) {
+            existing.setContentHash(imageMetadata.getContentHash());
         }
         
         existing.setUpdatedAt(Instant.now());
@@ -81,6 +99,15 @@ public class ImageMetadataService {
     public ImageMetadata findById(String imageId) {
         return imageMetadataRepository.findById(imageId)
                 .orElseThrow(() -> new ImageExceptions.ImageMetadataNotFoundException(imageId));
+    }
+
+    /**
+     * Retrieves metadata for an image with the specified content hash.
+     * @param contentHash the content hash to look up
+     * @return matching metadata, if present
+     */
+    public java.util.Optional<ImageMetadata> findByContentHash(String contentHash) {
+        return imageMetadataRepository.findByContentHash(contentHash);
     }
 
     /**

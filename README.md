@@ -15,11 +15,16 @@ API for handling images and using **Amazon Rekognition** for moderating images a
 
 Image metadata is stored in **Amazon DynamoDB**.
 
+Uploaded image content is identified by its exact file bytes using SHA-256 by default; SHA-512 is also supported. A custom Spring bean implementing `HashFunc` can provide a different hashing strategy. The content hash is stored in image metadata and indexed in DynamoDB. When matching content already has moderation labels, publishing or replacing an image reuses those labels and skips another Rekognition moderation request. The image is still uploaded or replaced, so identical files can have separate image records.
+
 Docker images are stored in Docker Hub, with CI/CD integration via GitHub Actions.
 
 ## Versioning
 
 **Current version:** 0.8.0
+- Added content hashing with SHA-256 by default and optional SHA-512 or custom hash functions.
+- Reuse moderation labels for previously moderated identical image content.
+- Added unit tests for hashing and updated project-wide JaCoCo coverage reporting.
 - Added OpenAPI documentation and Swagger UI for the REST API.
 - Documented image upload, retrieval, metadata, replacement, and deletion endpoints.
 
@@ -49,6 +54,16 @@ When the application is running on the default port, interactive API documentati
 | `GET` | `/api/images/{imageId}/metadata` | Retrieve image metadata |
 | `PATCH` | `/api/images/{imageId}/metadata` | Update image metadata |
 
+## Tests and Coverage
+
+Run the full test suite and generate JaCoCo coverage reports with:
+
+```bash
+./gradlew clean test jacocoTestReport
+```
+
+The HTML report is generated at `build/reports/jacoco/test/html/index.html`; the XML report is generated at `build/reports/jacoco/test/jacocoTestReport.xml`.
+
 ## Tech Stack
 | Category | Tools |
 |---|---|
@@ -64,6 +79,6 @@ When the application is running on the default port, interactive API documentati
 <div align="center">
 
 **Developed by** Linus Regander
-**Latest update:** 2026-09-30
+**Latest update:** 2026-10-20
 
 </div>

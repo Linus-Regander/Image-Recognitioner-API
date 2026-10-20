@@ -3,6 +3,7 @@ package com.imagerecognitioner.model.image;
 import io.swagger.v3.oas.annotations.media.Schema;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +26,8 @@ public class ImageMetadata {
     private String s3Key;
     @Schema(description = "Amazon S3 bucket containing the image.")
     private String s3Bucket;
+    @Schema(description = "Content hash used to identify duplicate image content.")
+    private String contentHash;
     @Schema(description = "Owner associated with the image.")
     private String owner;
     @Schema(description = "Image size in bytes.", format = "int64")
@@ -101,6 +104,15 @@ public class ImageMetadata {
      */
     public void setS3Bucket(String s3Bucket) {
         this.s3Bucket = s3Bucket;
+    }
+
+    @DynamoDbSecondaryPartitionKey(indexNames = "contentHash-index")
+    public String getContentHash() {
+        return contentHash;
+    }
+
+    public void setContentHash(String contentHash) {
+        this.contentHash = contentHash;
     }
 
     /**

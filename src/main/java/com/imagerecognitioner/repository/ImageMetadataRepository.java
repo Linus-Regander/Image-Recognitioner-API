@@ -1,6 +1,7 @@
 package com.imagerecognitioner.repository;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +16,7 @@ import com.imagerecognitioner.model.image.ImageMetadata;
  */
 @Repository 
 public class ImageMetadataRepository implements ImageMetadataRepositoryInterface {
+    private static final String CONTENT_HASH_INDEX = "contentHash-index";
     private final DynamoDbTable<ImageMetadata> imageMetadataTable;
 
     public ImageMetadataRepository(DynamoDbTable<ImageMetadata> imageMetadataTable) {
@@ -50,6 +52,15 @@ public class ImageMetadataRepository implements ImageMetadataRepositoryInterface
     @Override
     public Optional<ImageMetadata> findById(String imageId) {
         return Optional.ofNullable(imageMetadataTable.getItem(r -> r.key(k -> k.partitionValue(imageId))));
+    }
+
+    @Override
+    public Optional<ImageMetadata> findByContentHash(String contentHash) {
+        return imageMetadataTable.index(CONTENT_HASH_INDEX)
+                .query(QueryConditional.keyEqualTo(key -> key.partitionValue(contentHash)))
+                .stream()
+                .flatMap(page -> page.items().stream())
+                .findFirst();
     }
 
     /**

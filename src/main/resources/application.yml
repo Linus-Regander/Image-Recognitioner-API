@@ -1,4 +1,6 @@
 app:
+  hash:
+    crypto-type: SHA256
   aws:
     region: eu-north-1
     dynamo-db:

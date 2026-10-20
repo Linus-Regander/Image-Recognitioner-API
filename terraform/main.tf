@@ -28,6 +28,17 @@ resource "aws_dynamodb_table" "images" {
     type = "S"
   }
 
+  attribute {
+    name = "contentHash"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "contentHash-index"
+    hash_key        = "contentHash"
+    projection_type = "ALL"
+  }
+
   point_in_time_recovery {
     enabled = !var.local_mode
   }

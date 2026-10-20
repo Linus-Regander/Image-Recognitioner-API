@@ -21,6 +21,7 @@ import java.util.Map;
 
 import static com.imagerecognitioner.exception.ImageExceptions.ImageMetadataNotFoundException;
 import static com.imagerecognitioner.exception.ImageExceptions.InvalidImageException;
+import static com.imagerecognitioner.exception.ImageExceptions.DuplicateImageException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.mock;
@@ -46,6 +47,13 @@ class GlobalExceptionHandlerTest {
         runTestCases(Map.of("metadata missing", () -> assertResponse(
             handler.handleNotFound(new ImageMetadataNotFoundException("img-1"), request),
             404, "ImageMetadata not found with id: img-1")));
+    }
+
+    @Test
+    void handleDuplicateImage_returnsConflictResponse() {
+        runTestCases(Map.of("duplicate image", () -> assertResponse(
+            handler.handleDuplicateImage(new DuplicateImageException("hash"), request),
+            409, "An image with this content hash already exists: hash")));
     }
 
     @Test
