@@ -81,8 +81,8 @@ class AwsClientTest {
     @Test
     void s3Presigner_configuresRegionAndOptionalEndpoint() {
         Map<String, AwsTestCase> testCases = Map.of(
-            "without endpoint", () -> assertNotNull(awsClient.s3Presigner(properties, "")),
-            "with endpoint", () -> assertNotNull(awsClient.s3Presigner(properties, "http://localhost:9000")));
+            "without endpoint", () -> assertNotNull(awsClient.s3Presigner(properties, "", "")),
+            "with endpoint", () -> assertNotNull(awsClient.s3Presigner(properties, "http://localhost:9000", "")));
         runTestCases(testCases);
     }
 

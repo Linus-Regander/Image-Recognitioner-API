@@ -19,13 +19,15 @@ import java.util.List;
  * ImageRecognitionService
  */
 @Service
-public class ImageRecognitionService {
+public class ImageRecognitionService implements ImageRecognitionServiceInterface {
     private final RekognitionClient rekognitionClient;
     private final float defaultModerationMinConfidence;
+    private final boolean moderationEnabled;
 
     public ImageRecognitionService(RekognitionClient rekognitionClient, AwsProperties awsProperties) {
         this.rekognitionClient = rekognitionClient;
         this.defaultModerationMinConfidence = awsProperties.getRekognition().getModerationMinConfidence().floatValue();
+        this.moderationEnabled = awsProperties.getRekognition().isModerationEnabled();
     }
 
     /**
@@ -36,6 +38,10 @@ public class ImageRecognitionService {
      * @return The result of the moderation operation.
      */
     public ModerationResult moderateContent(String bucket, String key, Float minConfidence) {
+        if (!moderationEnabled) {
+            return new ModerationResult(false, List.of());
+        }
+
         float confidence = effectiveConfidence(minConfidence);
         
         DetectModerationLabelsRequest request = DetectModerationLabelsRequest.builder()

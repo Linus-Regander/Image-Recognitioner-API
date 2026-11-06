@@ -37,6 +37,7 @@ class ImageRecognitionServiceTest {
     @BeforeEach
     void setUp() {
         AwsProperties properties = new AwsProperties();
+        properties.getRekognition().setModerationEnabled(true);
         properties.getRekognition().setModerationMinConfidence(60.0);
         imageRecognitionService = new ImageRecognitionService(rekognitionClient, properties);
     }

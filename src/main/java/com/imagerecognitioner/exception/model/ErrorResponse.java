@@ -1,4 +1,4 @@
-package com.imagerecognitioner.exception;
+package com.imagerecognitioner.exception.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
