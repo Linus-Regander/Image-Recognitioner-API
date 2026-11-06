@@ -86,6 +86,7 @@ public class AwsProperties {
     public static class Rekognition {
         private String endpoint;
         private Double moderationMinConfidence = 60.0;
+        private boolean moderationEnabled;
 
         public String getEndpoint() {
             return endpoint;
@@ -103,5 +104,12 @@ public class AwsProperties {
             this.moderationMinConfidence = moderationMinConfidence;
         }
 
+        public boolean isModerationEnabled() {
+            return moderationEnabled;
+        }
+
+        public void setModerationEnabled(boolean moderationEnabled) {
+            this.moderationEnabled = moderationEnabled;
+        }
     }
 }

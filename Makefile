@@ -10,7 +10,7 @@ JAR_FILE = build/libs/$(PROJECT_NAME)-$(PROJECT_VERSION).jar
 
 DOCKER_PORT := 8080
 
-.PHONY: run_gradle build_gradle build_jar run_jar test clean start_container stop_container build_container tf-aws tf-destroy-local
+.PHONY: run_gradle build_gradle build_jar run_jar test clean run stop_container build terraform-apply terraform-destroy-local
 
 run_gradle: build_gradle
 	$(GRADLE) bootRun
@@ -31,17 +31,17 @@ test:
 clean:
 	$(GRADLE) clean
 
-start_container:
+run: build
 	docker compose up --build
 
-stop_container:
+stop:
 	docker compose down
 
-build_container:
+build:
 	docker compose build
 
-tf-destroy-local:
+terraform-destroy-local:
 	cd terraform && terraform destroy -auto-approve -var local_mode=true -var local_endpoint=http://localhost:4566
 
-tf-aws:
+terraform-apply:
 	cd terraform && terraform apply -var local_mode=false

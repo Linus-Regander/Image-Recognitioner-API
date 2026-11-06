@@ -1,6 +1,7 @@
 package com.imagerecognitioner.exception;
 
 import com.imagerecognitioner.config.TraceIdFilter;
+import com.imagerecognitioner.exception.model.ErrorResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

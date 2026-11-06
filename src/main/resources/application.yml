@@ -8,8 +8,10 @@ app:
       endpoint: http://localhost:4566
     s3:
       endpoint: http://localhost:4566
+      public-endpoint: http://localhost:4566
       bucket-name: image-recognitioner
       key-prefix: images/
     rekognition:
       endpoint: http://localhost:4566
       moderation-min-confidence: 60.0
+      moderation-enabled: true

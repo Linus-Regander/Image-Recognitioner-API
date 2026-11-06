@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.time.Duration;
@@ -54,13 +55,10 @@ public class ImageController {
     @ApiResponse(responseCode = "201", description = "Image uploaded and metadata created")
     @ApiResponse(responseCode = "400", description = "Invalid image or moderation confidence")
     @ApiResponse(responseCode = "422", description = "Image moderation rejected the image")
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImageMetadata> publishImage(
-            @Parameter(description = "Image file to upload", required = true, schema = @Schema(type = "string", format = "binary"))
-            @RequestParam("file") MultipartFile file,
-            @Parameter(description = "Owner of the image", required = true)
+            @RequestPart("file") MultipartFile file,
             @RequestParam("owner") String owner,
-            @Parameter(description = "Minimum Rekognition moderation confidence")
             @RequestParam(value = "minConfidence", required = false) Float minConfidence) {
         return ResponseEntity.status(HttpStatus.CREATED).body(imageService.publishImage(file, owner, minConfidence));
     }
@@ -69,13 +67,10 @@ public class ImageController {
     @ApiResponse(responseCode = "200", description = "Image replaced and metadata updated")
     @ApiResponse(responseCode = "404", description = "Image metadata not found")
     @ApiResponse(responseCode = "422", description = "Image moderation rejected the image")
-    @PutMapping("/{imageId}")
+    @PutMapping(value = "/{imageId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImageMetadata> updateImage(
-            @Parameter(description = "Image file to upload", required = true, schema = @Schema(type = "string", format = "binary"))
-            @RequestParam("file") MultipartFile file,
-            @Parameter(description = "The image identifier", required = true, in = ParameterIn.PATH)
+            @RequestPart("file") MultipartFile file,
             @PathVariable String imageId,
-            @Parameter(description = "Minimum Rekognition moderation confidence")
             @RequestParam(value = "minConfidence", required = false) Float minConfidence) {
         return ResponseEntity.status(HttpStatus.OK).body(imageService.replaceImage(file, imageId, minConfidence));
     }

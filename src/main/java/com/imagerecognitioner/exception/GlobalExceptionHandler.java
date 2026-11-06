@@ -1,6 +1,12 @@
 package com.imagerecognitioner.exception;
 
 import com.imagerecognitioner.config.TraceIdFilter;
+import com.imagerecognitioner.exception.ImageExceptions.DuplicateImageException;
+import com.imagerecognitioner.exception.ImageExceptions.ImageMetadataNotFoundException;
+import com.imagerecognitioner.exception.ImageExceptions.ImageModerationException;
+import com.imagerecognitioner.exception.ImageExceptions.InvalidImageException;
+import com.imagerecognitioner.exception.ImageExceptions.InvalidModerationConfidenceException;
+import com.imagerecognitioner.exception.model.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,10 +14,19 @@ import org.slf4j.MDC;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -46,6 +61,55 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidModerationConfidenceException.class)
     public ResponseEntity<ErrorResponse> handleInvalidModerationConfidence(InvalidModerationConfidenceException ex, WebRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request, ex);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex, WebRequest request) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "Uploaded file is too large", request, ex);
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipart(MultipartException ex, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Request must be multipart/form-data with the required file part", request, ex);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponse> handleMissingPart(MissingServletRequestPartException ex, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Missing required part: " + ex.getRequestPartName(), request, ex);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException ex, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Missing required parameter: " + ex.getParameterName(), request, ex);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter '" + ex.getName() + "'", request, ex);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Malformed or missing request body", request, ex);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex, WebRequest request) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request, ex);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage(), request, ex);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex, WebRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Resource not found", request, ex);
     }
 
     @ExceptionHandler(ImageModerationException.class)

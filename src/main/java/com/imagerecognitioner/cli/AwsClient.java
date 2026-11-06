@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /**
@@ -92,13 +93,18 @@ public class AwsClient {
      * @return
      */
     @Bean
-    public S3Presigner s3Presigner(AwsProperties awsProperties, @Value("${app.aws.s3.endpoint:}") String s3Endpoint) {
+    public S3Presigner s3Presigner(AwsProperties awsProperties,@Value("${app.aws.s3.endpoint:}") String s3Endpoint, @Value("${app.aws.s3.public-endpoint:}") String publicEndpoint) {
         var builder = S3Presigner.builder()
                 .region(Region.of(awsProperties.getRegion()))
                 .credentialsProvider(DefaultCredentialsProvider.create());
 
-        if (!s3Endpoint.isBlank()) {
-            builder.endpointOverride(URI.create(s3Endpoint));
+        String endpoint = !publicEndpoint.isBlank() ? publicEndpoint : s3Endpoint;
+
+        if (!endpoint.isBlank()) {
+            builder.endpointOverride(URI.create(endpoint))
+                    .serviceConfiguration(S3Configuration.builder()
+                            .pathStyleAccessEnabled(true)
+                            .build());
         }
 
         return builder.build();

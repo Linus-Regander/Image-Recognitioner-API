@@ -21,19 +21,25 @@ Docker images are stored in Docker Hub, with CI/CD integration via GitHub Action
 
 ## Versioning
 
-**Current version:** 0.8.0
+**Current version:** 0.8.1
+- Fixed bugs in API and Swagger docs.
+- Added moderation enable for local uploads of images.
+- Fixed bug in image presigned URLs.
+
+**Previous version:** 0.8.0
 - Added content hashing with SHA-256 by default and optional SHA-512 or custom hash functions.
 - Reuse moderation labels for previously moderated identical image content.
 - Added unit tests for hashing and updated project-wide JaCoCo coverage reporting.
 - Added OpenAPI documentation and Swagger UI for the REST API.
 - Documented image upload, retrieval, metadata, replacement, and deletion endpoints.
 
-**Previous version:** 0.7.0
-- Added Amazon Rekognition integration with client.
-- Added image moderation for tagging and preventing upload of inappropriate images.
-- Updated Terraform and configuration for Rekognition support.
+**Next version:** (0.9.0) Authentication and authorization in API with AWS Cognito and AWS Lambda, with JWT parsing and tenant isolation.
 
-**Next version:** Authentication and authorization in API.
+**Future version:**
+- Updates to Terraform for real AWS provisioning.
+- Logging.
+- Integration/Component tests.
+- Compute support from AWS ECS.
 
 ## API Documentation
 
