@@ -1,12 +1,12 @@
 package com.imagerecognitioner.service;
 
 import com.imagerecognitioner.exception.ImageExceptions;
+import com.imagerecognitioner.exception.ImageExceptions.ImageMetadataNotFoundException;
 import com.imagerecognitioner.model.image.ImageMetadata;
 import com.imagerecognitioner.repository.ImageMetadataRepositoryInterface;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -28,12 +28,6 @@ public class ImageMetadataService {
      * @return the created ImageMetadata object
      */
     public ImageMetadata create(ImageMetadata imageMetadata) {
-        Instant now = Instant.now();
-
-        imageMetadata.setImageId(UUID.randomUUID().toString());
-        imageMetadata.setCreatedAt(now);
-        imageMetadata.setUpdatedAt(now);
-
         return imageMetadataRepository.save(imageMetadata);
     }
 
@@ -43,8 +37,8 @@ public class ImageMetadataService {
      * @param imageMetadata the updated ImageMetadata object
      * @return the updated ImageMetadata object
      */
-    public ImageMetadata update(String imageId, ImageMetadata imageMetadata) {
-        return update(imageId, imageMetadata, false);
+    public ImageMetadata update(String tenantId, String imageId, ImageMetadata imageMetadata) {
+        return update(tenantId, imageId, imageMetadata, false);
     }
 
     /**
@@ -53,12 +47,12 @@ public class ImageMetadataService {
      * @param imageMetadata the replacement image metadata
      * @return the updated metadata
      */
-    public ImageMetadata updateImageContent(String imageId, ImageMetadata imageMetadata) {
-        return update(imageId, imageMetadata, true);
+    public ImageMetadata updateImageContent(String tenantId, String imageId, ImageMetadata imageMetadata) {
+        return update(tenantId, imageId, imageMetadata, true);
     }
 
-    private ImageMetadata update(String imageId, ImageMetadata imageMetadata, boolean updateContentHash) {
-        ImageMetadata existing = imageMetadataRepository.findById(imageId)
+    private ImageMetadata update(String tenantId,String imageId, ImageMetadata imageMetadata, boolean updateContentHash) {
+        ImageMetadata existing = imageMetadataRepository.findById(imageId, tenantId)
                 .orElseThrow(() -> new ImageExceptions.ImageMetadataNotFoundException(imageId));
 
         if (imageMetadata.getFileName() != null) {
@@ -86,8 +80,8 @@ public class ImageMetadataService {
      * Retrieves all ImageMetadata objects.
      * @return a list of all ImageMetadata objects
      */
-    public List<ImageMetadata> findAll() {
-        return imageMetadataRepository.findAll();
+    public List<ImageMetadata> findAll(String tenantId) {
+        return imageMetadataRepository.findAll(tenantId);
     }
 
     /**
@@ -96,8 +90,8 @@ public class ImageMetadataService {
      * @return the ImageMetadata object
      * @throws ImageMetadataNotFoundException if no ImageMetadata exists with the given imageId
      */
-    public ImageMetadata findById(String imageId) {
-        return imageMetadataRepository.findById(imageId)
+    public ImageMetadata findById(String imageId, String tenantId) {
+        return imageMetadataRepository.findById(imageId, tenantId)
                 .orElseThrow(() -> new ImageExceptions.ImageMetadataNotFoundException(imageId));
     }
 
@@ -115,11 +109,11 @@ public class ImageMetadataService {
      * @param imageId the ID of the ImageMetadata object to delete
      * @throws ImageMetadataNotFoundException if no ImageMetadata exists with the given imageId
      */
-    public void deleteById(String imageId) {
-        if (imageMetadataRepository.findById(imageId).isEmpty()) {
+    public void deleteById(String imageId, String tenantId) {
+        if (imageMetadataRepository.findById(imageId, tenantId).isEmpty()) {
             throw new ImageExceptions.ImageMetadataNotFoundException(imageId);
         }
 
-        imageMetadataRepository.deleteById(imageId);
+        imageMetadataRepository.deleteById(imageId, tenantId);
     }
 }

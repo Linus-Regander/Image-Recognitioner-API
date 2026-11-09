@@ -1,6 +1,7 @@
 package com.imagerecognitioner.controller;
 
 import com.imagerecognitioner.model.image.ImageResponse;
+import com.imagerecognitioner.security.annotation.CurrentTenant;
 import com.imagerecognitioner.model.image.ImageMetadata;
 import com.imagerecognitioner.service.ImageService;
 
@@ -39,16 +40,18 @@ public class ImageController {
     @ApiResponse(responseCode = "404", description = "Image metadata not found")
     @GetMapping("/{imageId}/metadata")
     public ResponseEntity<ImageMetadata> getImageMetadata(
+            @CurrentTenant String tenantId,
             @Parameter(description = "The image identifier", required = true, in = ParameterIn.PATH)
             @PathVariable String imageId) {
-        return ResponseEntity.ok(imageService.selectImageMetadata(imageId));
+        return ResponseEntity.ok(imageService.selectImageMetadata(tenantId, imageId));
     }
 
     @Operation(summary = "List image metadata", description = "Retrieves metadata for all images from DynamoDB.")
     @ApiResponse(responseCode = "200", description = "Image metadata returned")
     @GetMapping("/metadata")
-    public ResponseEntity<List<ImageMetadata>> getAllImageMetadata() {
-        return ResponseEntity.ok(imageService.selectAllImageMetadata());
+    public ResponseEntity<List<ImageMetadata>> getAllImageMetadata(
+            @CurrentTenant String tenantId) {
+        return ResponseEntity.ok(imageService.selectAllImageMetadata(tenantId));
     }
 
     @Operation(summary = "Upload an image", description = "Uploads an image to S3, moderates it with Amazon Rekognition, and stores its metadata in DynamoDB.")
@@ -57,10 +60,11 @@ public class ImageController {
     @ApiResponse(responseCode = "422", description = "Image moderation rejected the image")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImageMetadata> publishImage(
+            @CurrentTenant String tenantId,
             @RequestPart("file") MultipartFile file,
             @RequestParam("owner") String owner,
             @RequestParam(value = "minConfidence", required = false) Float minConfidence) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(imageService.publishImage(file, owner, minConfidence));
+        return ResponseEntity.status(HttpStatus.CREATED).body(imageService.publishImage(tenantId, file, owner, minConfidence));
     }
 
     @Operation(summary = "Replace an image", description = "Replaces an existing image in S3 and updates its metadata in DynamoDB.")
@@ -69,10 +73,11 @@ public class ImageController {
     @ApiResponse(responseCode = "422", description = "Image moderation rejected the image")
     @PutMapping(value = "/{imageId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImageMetadata> updateImage(
+            @CurrentTenant String tenantId,
             @RequestPart("file") MultipartFile file,
             @PathVariable String imageId,
             @RequestParam(value = "minConfidence", required = false) Float minConfidence) {
-        return ResponseEntity.status(HttpStatus.OK).body(imageService.replaceImage(file, imageId, minConfidence));
+        return ResponseEntity.status(HttpStatus.OK).body(imageService.replaceImage(tenantId, file, imageId, minConfidence));
     }
 
     @Operation(summary = "Update image metadata", description = "Updates metadata for an existing image.")
@@ -80,11 +85,12 @@ public class ImageController {
     @ApiResponse(responseCode = "404", description = "Image metadata not found")
     @PatchMapping("/{imageId}/metadata")
     public ResponseEntity<ImageMetadata> updateImageMetadata(
+            @CurrentTenant String tenantId,
             @Parameter(description = "The image identifier", required = true, in = ParameterIn.PATH)
             @PathVariable String imageId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Updated image metadata", required = true)
             @RequestBody ImageMetadata imageMetadata) {
-        return ResponseEntity.ok(imageService.updateMetadata(imageId, imageMetadata));
+        return ResponseEntity.ok(imageService.updateMetadata(tenantId, imageId, imageMetadata));
     }
 
     @Operation(summary = "Get an image", description = "Retrieves image metadata and a presigned S3 URL.")
@@ -92,13 +98,14 @@ public class ImageController {
     @ApiResponse(responseCode = "404", description = "Image metadata not found")
     @GetMapping("/{imageId}")
     public ResponseEntity<ImageResponse> selectImage(
+            @CurrentTenant String tenantId,
             @Parameter(description = "The image identifier", required = true, in = ParameterIn.PATH)
             @PathVariable String imageId,
             @Parameter(description = "Presigned URL validity in seconds")
             @RequestParam(value = "expiry", required = false) Long expirySeconds) {
         Duration expiry = expirySeconds != null ? Duration.ofSeconds(expirySeconds) : null;
 
-        return ResponseEntity.ok(imageService.selectImage(imageId, expiry));
+        return ResponseEntity.ok(imageService.selectImage(tenantId, imageId, expiry));
     }
 
     @Operation(summary = "Delete an image", description = "Deletes an image from S3 and its metadata from DynamoDB.")
@@ -106,9 +113,10 @@ public class ImageController {
     @ApiResponse(responseCode = "404", description = "Image metadata not found")
     @DeleteMapping("/{imageId}")
     public ResponseEntity<Void> deleteImage(
+            @CurrentTenant String tenantId,
             @Parameter(description = "The image identifier", required = true, in = ParameterIn.PATH)
             @PathVariable String imageId) {
-        imageService.deleteImage(imageId);
+        imageService.deleteImage(tenantId, imageId);
 
         return ResponseEntity.noContent().build();
     }

@@ -48,6 +48,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request, ex);
     }
 
+    @ExceptionHandler(MissingAuthenticationParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingAuthenticationParameter(MissingAuthenticationParameterException ex, WebRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request, ex);
+    }
+
     @ExceptionHandler(DuplicateImageException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateImage(DuplicateImageException ex, WebRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request, ex);

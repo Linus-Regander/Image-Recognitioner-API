@@ -11,6 +11,8 @@ import com.imagerecognitioner.model.image.ImageMetadata;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
+import software.amazon.awssdk.enhanced.dynamodb.TableMetadata;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.DeleteItemEnhancedRequest;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ImageMetadataRepositoryTest {
+    private static final String TENANT_ID = "tenant-1";
 
     @Mock
     private DynamoDbTable<ImageMetadata> imageMetadataTable;
@@ -81,19 +84,19 @@ class ImageMetadataRepositoryTest {
         ImageMetadata metadata = metadata("img-1");
         Map<String, RepositoryTestCase> testCases = Map.of(
             "populated table", () -> {
-                when(imageMetadataTable.scan()).thenReturn(pages);
+                when(imageMetadataTable.query(org.mockito.ArgumentMatchers.any(QueryConditional.class))).thenReturn(pages);
                 when(pages.items()).thenReturn(items);
                 when(items.stream()).thenReturn(Stream.of(metadata));
-                assertEquals(List.of(metadata), repository.findAll());
-                verify(imageMetadataTable).scan();
+                assertEquals(List.of(metadata), repository.findAll(TENANT_ID));
+                verifyTenantQuery();
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable, pages, items });
             },
             "empty table", () -> {
-                when(imageMetadataTable.scan()).thenReturn(pages);
+                when(imageMetadataTable.query(org.mockito.ArgumentMatchers.any(QueryConditional.class))).thenReturn(pages);
                 when(pages.items()).thenReturn(items);
                 when(items.stream()).thenReturn(Stream.empty());
-                assertTrue(repository.findAll().isEmpty());
-                verify(imageMetadataTable).scan();
+                assertTrue(repository.findAll(TENANT_ID).isEmpty());
+                verifyTenantQuery();
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable, pages, items });
             });
 
@@ -106,14 +109,14 @@ class ImageMetadataRepositoryTest {
         Map<String, RepositoryTestCase> testCases = Map.of(
             "matching metadata", () -> {
                 when(imageMetadataTable.getItem(org.mockito.ArgumentMatchers.<Consumer<GetItemEnhancedRequest.Builder>>any())).thenReturn(metadata);
-                assertEquals(Optional.of(metadata), repository.findById("img-1"));
-                verifyFindRequest("img-1");
+                assertEquals(Optional.of(metadata), repository.findById("img-1", TENANT_ID));
+                verifyFindRequest("img-1", TENANT_ID);
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable });
             },
             "missing metadata", () -> {
                 when(imageMetadataTable.getItem(org.mockito.ArgumentMatchers.<Consumer<GetItemEnhancedRequest.Builder>>any())).thenReturn(null);
-                assertEquals(Optional.empty(), repository.findById("missing"));
-                verifyFindRequest("missing");
+                assertEquals(Optional.empty(), repository.findById("missing", TENANT_ID));
+                verifyFindRequest("missing", TENANT_ID);
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable });
             });
 
@@ -153,13 +156,13 @@ class ImageMetadataRepositoryTest {
     void deleteById_deletesEachRequestedKey() {
         Map<String, RepositoryTestCase> testCases = Map.of(
             "known image", () -> {
-                repository.deleteById("img-1");
-                verifyDeleteRequest("img-1");
+                repository.deleteById("img-1", TENANT_ID);
+                verifyDeleteRequest("img-1", TENANT_ID);
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable });
             },
             "another image", () -> {
-                repository.deleteById("img-2");
-                verifyDeleteRequest("img-2");
+                repository.deleteById("img-2", TENANT_ID);
+                verifyDeleteRequest("img-2", TENANT_ID);
                 org.mockito.Mockito.reset(new Object[] { imageMetadataTable });
             });
 
@@ -167,21 +170,32 @@ class ImageMetadataRepositoryTest {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private void verifyFindRequest(String imageId) {
+    private void verifyFindRequest(String imageId, String tenantId) {
         ArgumentCaptor<Consumer> request = ArgumentCaptor.forClass(Consumer.class);
         verify(imageMetadataTable).getItem(request.capture());
         GetItemEnhancedRequest.Builder builder = GetItemEnhancedRequest.builder();
         request.getValue().accept(builder);
-        assertEquals(imageId, builder.build().key().partitionKeyValue().s());
+        assertEquals(tenantId, builder.build().key().partitionKeyValue().s());
+        assertEquals(imageId, builder.build().key().sortKeyValue().orElseThrow().s());
+    }
+
+    private void verifyTenantQuery() {
+        ArgumentCaptor<QueryConditional> condition = ArgumentCaptor.forClass(QueryConditional.class);
+        verify(imageMetadataTable).query(condition.capture());
+        var expression = condition.getValue().expression(
+                TableSchema.fromBean(ImageMetadata.class), TableMetadata.primaryIndexName());
+        assertTrue(expression.expressionValues().values().stream()
+                .anyMatch(value -> TENANT_ID.equals(value.s())));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private void verifyDeleteRequest(String imageId) {
+    private void verifyDeleteRequest(String imageId, String tenantId) {
         ArgumentCaptor<Consumer> request = ArgumentCaptor.forClass(Consumer.class);
         verify(imageMetadataTable).deleteItem(request.capture());
         DeleteItemEnhancedRequest.Builder builder = DeleteItemEnhancedRequest.builder();
         request.getValue().accept(builder);
-        assertEquals(imageId, builder.build().key().partitionKeyValue().s());
+        assertEquals(tenantId, builder.build().key().partitionKeyValue().s());
+        assertEquals(imageId, builder.build().key().sortKeyValue().orElseThrow().s());
     }
 
     private ImageMetadata metadata(String imageId) {

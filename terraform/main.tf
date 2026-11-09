@@ -12,8 +12,9 @@ provider "aws" {
   dynamic "endpoints" {
     for_each = var.local_mode ? [1] : []
     content {
-      dynamodb = var.local_endpoint
-      s3       = var.local_endpoint
+      dynamodb    = var.local_endpoint
+      s3          = var.local_endpoint
+      rekognition = var.local_endpoint
     }
   }
 }
@@ -21,7 +22,13 @@ provider "aws" {
 resource "aws_dynamodb_table" "images" {
   name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "imageId"
+  hash_key     = "tenantId"
+  range_key    = "imageId"
+
+  attribute {
+    name = "tenantId"
+    type = "S"
+  }
 
   attribute {
     name = "imageId"

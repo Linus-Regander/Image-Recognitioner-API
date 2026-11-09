@@ -10,7 +10,9 @@ JAR_FILE = build/libs/$(PROJECT_NAME)-$(PROJECT_VERSION).jar
 
 DOCKER_PORT := 8080
 
-.PHONY: run_gradle build_gradle build_jar run_jar test clean run stop_container build terraform-apply terraform-destroy-local
+.PHONY: run_gradle build_gradle build_jar run_jar test clean run stop_container build terraform-destroy-local terraform-init terraform-fmt terraform-validate terraform-plan terraform-apply
+
+### Java commands
 
 run_gradle: build_gradle
 	$(GRADLE) bootRun
@@ -31,8 +33,11 @@ test:
 clean:
 	$(GRADLE) clean
 
+
+### Docker commands
+
 run: build
-	docker compose up --build
+	docker compose up
 
 stop:
 	docker compose down
@@ -40,8 +45,27 @@ stop:
 build:
 	docker compose build
 
+### Terraform commands
+
+TF := terraform -chdir=terraform
+
 terraform-destroy-local:
-	cd terraform && terraform destroy -auto-approve -var local_mode=true -var local_endpoint=http://localhost:4566
+	$(TF) workspace select -or-create=true local
+	$(TF) destroy -auto-approve -var local_mode=true -var local_endpoint=http://localhost:4566
+
+terraform-init:
+	$(TF) init
+
+terraform-fmt:
+	$(TF) fmt
+
+terraform-validate:
+	$(TF) validate
+
+terraform-plan:
+	$(TF) workspace select -or-create=true aws
+	$(TF) plan -var local_mode=false
 
 terraform-apply:
-	cd terraform && terraform apply -var local_mode=false
+	$(TF) workspace select -or-create=true aws
+	$(TF) apply -var local_mode=false

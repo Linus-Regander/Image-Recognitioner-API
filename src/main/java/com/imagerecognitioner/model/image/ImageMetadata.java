@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,7 +13,6 @@ import java.util.List;
  * Model class representing metadata for an image stored in DynamoDB.
  * ImageMetadata
  */
-
 @DynamoDbBean
 @Schema(description = "Metadata for an image stored in Amazon S3 and indexed in DynamoDB.")
 public class ImageMetadata {
@@ -40,12 +40,14 @@ public class ImageMetadata {
     private ImageStatus imageStatus;
     @Schema(description = "Labels assigned to the image by Amazon Rekognition.")
     private List<ImageLabel> labels;
+    @Schema(description = "Tenant ID associated with the image, derived from JWT claims.")
+    private String tenantId;
 
     /**
      * Gets the ID of the image.
      * @return the image ID
      */
-    @DynamoDbPartitionKey
+    @DynamoDbSortKey
     public String getImageId() {
         return imageId;
     }
@@ -226,4 +228,9 @@ public class ImageMetadata {
     public void setLabels(List<ImageLabel> labels) {
         this.labels = labels;
     }
+
+    @DynamoDbPartitionKey
+    public String getTenantId() { return tenantId; }
+
+    public void setTenantId(String tenantId) { this.tenantId = tenantId; }
 }

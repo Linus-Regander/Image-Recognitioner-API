@@ -2,16 +2,22 @@ app:
   hash:
     crypto-type: SHA256
   aws:
-    region: eu-north-1
+    region: ${APP_AWS_REGION:eu-north-1}
     dynamo-db:
-      table-name: image-metadata
-      endpoint: http://localhost:4566
+      table-name: ${APP_AWS_DYNAMO_DB_TABLE_NAME:image-metadata}
+      endpoint: ${APP_AWS_DYNAMO_DB_ENDPOINT:}
     s3:
-      endpoint: http://localhost:4566
-      public-endpoint: http://localhost:4566
-      bucket-name: image-recognitioner
+      endpoint: ${APP_AWS_S3_ENDPOINT:}
+      public-endpoint: ${APP_AWS_S3_PUBLIC_ENDPOINT:}
+      bucket-name: ${APP_AWS_S3_BUCKET_NAME:image-recognitioner}
       key-prefix: images/
     rekognition:
-      endpoint: http://localhost:4566
+      endpoint: ${APP_AWS_REKOGNITION_ENDPOINT:}
       moderation-min-confidence: 60.0
       moderation-enabled: true
+  security:
+    local-auth-enabled: ${APP_SECURITY_LOCAL_AUTH_ENABLED:false}
+    user-pool-id: ${COGNITO_USER_POOL_ID:}
+    client-ids: ${COGNITO_CLIENT_ID:}
+    issuer: ${COGNITO_ISSUER:}
+    jwk-set-uri: ${COGNITO_JWK_SET_URI:}

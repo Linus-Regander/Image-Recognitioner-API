@@ -4,9 +4,9 @@ variable "region" {
 }
 
 variable "local_mode" {
-  description = "toggles local mode (LocalStack) vs. AWS"
+  description = "Use LocalStack instead of AWS. Keep local and AWS resources in separate Terraform workspaces."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "local_endpoint" {
@@ -23,4 +23,15 @@ variable "s3_bucket_name" {
   description = "Globally unique S3 bucket name"
   type        = string
   default     = "image-recognitioner"
+}
+
+variable "project_name" {
+  type    = string
+  default = "image-recognitioner"
+}
+
+variable "enable_face_collection" {
+  description = "Create a Rekognition face collection (only needed for face indexing/search)"
+  type        = bool
+  default     = false
 }

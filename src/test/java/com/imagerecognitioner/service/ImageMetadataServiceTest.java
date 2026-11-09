@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ImageMetadataServiceTest {
+    private static final String TENANT_ID = "tenant-1";
 
     @Mock
     private ImageMetadataRepositoryInterface repository;
@@ -37,31 +38,30 @@ class ImageMetadataServiceTest {
     }
 
     @Test
-    void create_assignsIdentityAndTimestampsBeforeSaving() {
+    void create_savesMetadataWithoutChangingTenantOwnership() {
         Map<String, ServiceTestCase> testCases = Map.of(
             "new metadata", () -> {
                 ImageMetadata metadata = new ImageMetadata();
+                metadata.setTenantId(TENANT_ID);
                 when(repository.save(metadata)).thenReturn(metadata);
 
                 assertSame(metadata, metadataService.create(metadata));
 
-                assertNotNull(metadata.getImageId());
-                assertNotNull(metadata.getCreatedAt());
-                assertNotNull(metadata.getUpdatedAt());
-                assertEquals(metadata.getCreatedAt(), metadata.getUpdatedAt());
+                assertEquals(TENANT_ID, metadata.getTenantId());
                 verify(repository).save(metadata);
                 reset(repository);
             },
             "metadata with existing fields", () -> {
                 ImageMetadata metadata = new ImageMetadata();
                 metadata.setFileName("photo.jpg");
+                metadata.setTenantId(TENANT_ID);
                 when(repository.save(metadata)).thenReturn(metadata);
 
                 ImageMetadata result = metadataService.create(metadata);
 
                 assertSame(metadata, result);
                 assertEquals("photo.jpg", result.getFileName());
-                assertNotNull(result.getImageId());
+                assertEquals(TENANT_ID, result.getTenantId());
                 verify(repository).save(metadata);
                 reset(repository);
             });
@@ -75,10 +75,10 @@ class ImageMetadataServiceTest {
             "all mutable fields", () -> {
                 ImageMetadata existing = metadata("img-1", "old.jpg", "image/jpeg", 10L);
                 ImageMetadata patch = metadata(null, "new.png", "image/png", 20L);
-                when(repository.findById("img-1")).thenReturn(Optional.of(existing));
+                when(repository.findById("img-1", TENANT_ID)).thenReturn(Optional.of(existing));
                 when(repository.save(existing)).thenReturn(existing);
 
-                assertSame(existing, metadataService.update("img-1", patch));
+                assertSame(existing, metadataService.update(TENANT_ID, "img-1", patch));
 
                 assertEquals("new.png", existing.getFileName());
                 assertEquals("image/png", existing.getContentType());
@@ -90,10 +90,10 @@ class ImageMetadataServiceTest {
             "null patch fields preserve existing values", () -> {
                 ImageMetadata existing = metadata("img-2", "old.jpg", "image/jpeg", 10L);
                 ImageMetadata patch = new ImageMetadata();
-                when(repository.findById("img-2")).thenReturn(Optional.of(existing));
+                when(repository.findById("img-2", TENANT_ID)).thenReturn(Optional.of(existing));
                 when(repository.save(existing)).thenReturn(existing);
 
-                metadataService.update("img-2", patch);
+                metadataService.update(TENANT_ID, "img-2", patch);
 
                 assertEquals("old.jpg", existing.getFileName());
                 assertEquals("image/jpeg", existing.getContentType());
@@ -106,10 +106,10 @@ class ImageMetadataServiceTest {
                 existing.setContentHash("original-hash");
                 ImageMetadata patch = new ImageMetadata();
                 patch.setContentHash("new-content-hash");
-                when(repository.findById("img-3")).thenReturn(Optional.of(existing));
+                when(repository.findById("img-3", TENANT_ID)).thenReturn(Optional.of(existing));
                 when(repository.save(existing)).thenReturn(existing);
 
-                metadataService.update("img-3", patch);
+                metadataService.update(TENANT_ID, "img-3", patch);
 
                 assertEquals("original-hash", existing.getContentHash());
                 reset(repository);
@@ -119,19 +119,19 @@ class ImageMetadataServiceTest {
                 existing.setContentHash("original-hash");
                 ImageMetadata replacement = new ImageMetadata();
                 replacement.setContentHash("replacement-hash");
-                when(repository.findById("img-4")).thenReturn(Optional.of(existing));
+                when(repository.findById("img-4", TENANT_ID)).thenReturn(Optional.of(existing));
                 when(repository.save(existing)).thenReturn(existing);
 
-                metadataService.updateImageContent("img-4", replacement);
+                metadataService.updateImageContent(TENANT_ID, "img-4", replacement);
 
                 assertEquals("replacement-hash", existing.getContentHash());
                 reset(repository);
             },
             "missing metadata", () -> {
-                when(repository.findById("missing")).thenReturn(Optional.empty());
+                when(repository.findById("missing", TENANT_ID)).thenReturn(Optional.empty());
 
                 assertThrows(ImageMetadataNotFoundException.class,
-                    () -> metadataService.update("missing", new ImageMetadata()));
+                    () -> metadataService.update(TENANT_ID, "missing", new ImageMetadata()));
 
                 verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
                 reset(repository);
@@ -145,17 +145,17 @@ class ImageMetadataServiceTest {
         Map<String, ServiceTestCase> testCases = Map.of(
             "populated result", () -> {
                 List<ImageMetadata> result = List.of(metadata("img-1", null, null, null));
-                when(repository.findAll()).thenReturn(result);
+                when(repository.findAll(TENANT_ID)).thenReturn(result);
 
-                assertSame(result, metadataService.findAll());
-                verify(repository).findAll();
+                assertSame(result, metadataService.findAll(TENANT_ID));
+                verify(repository).findAll(TENANT_ID);
                 reset(repository);
             },
             "empty result", () -> {
-                when(repository.findAll()).thenReturn(List.of());
+                when(repository.findAll(TENANT_ID)).thenReturn(List.of());
 
-                assertEquals(List.of(), metadataService.findAll());
-                verify(repository).findAll();
+                assertEquals(List.of(), metadataService.findAll(TENANT_ID));
+                verify(repository).findAll(TENANT_ID);
                 reset(repository);
             });
 
@@ -167,18 +167,18 @@ class ImageMetadataServiceTest {
         Map<String, ServiceTestCase> testCases = Map.of(
             "metadata found", () -> {
                 ImageMetadata metadata = metadata("img-1", null, null, null);
-                when(repository.findById("img-1")).thenReturn(Optional.of(metadata));
+                when(repository.findById("img-1", TENANT_ID)).thenReturn(Optional.of(metadata));
 
-                assertSame(metadata, metadataService.findById("img-1"));
-                verify(repository).findById("img-1");
+                assertSame(metadata, metadataService.findById("img-1", TENANT_ID));
+                verify(repository).findById("img-1", TENANT_ID);
                 reset(repository);
             },
             "metadata missing", () -> {
-                when(repository.findById("missing")).thenReturn(Optional.empty());
+                when(repository.findById("missing", TENANT_ID)).thenReturn(Optional.empty());
 
                 assertThrows(ImageMetadataNotFoundException.class,
-                    () -> metadataService.findById("missing"));
-                verify(repository).findById("missing");
+                    () -> metadataService.findById("missing", TENANT_ID));
+                verify(repository).findById("missing", TENANT_ID);
                 reset(repository);
             });
 
@@ -190,19 +190,19 @@ class ImageMetadataServiceTest {
         Map<String, ServiceTestCase> testCases = Map.of(
             "existing metadata", () -> {
                 ImageMetadata metadata = metadata("img-1", null, null, null);
-                when(repository.findById("img-1")).thenReturn(Optional.of(metadata));
+                when(repository.findById("img-1", TENANT_ID)).thenReturn(Optional.of(metadata));
 
-                metadataService.deleteById("img-1");
+                metadataService.deleteById("img-1", TENANT_ID);
 
-                verify(repository).deleteById("img-1");
+                verify(repository).deleteById("img-1", TENANT_ID);
                 reset(repository);
             },
             "missing metadata", () -> {
-                when(repository.findById("missing")).thenReturn(Optional.empty());
+                when(repository.findById("missing", TENANT_ID)).thenReturn(Optional.empty());
 
                 assertThrows(ImageMetadataNotFoundException.class,
-                    () -> metadataService.deleteById("missing"));
-                verify(repository, never()).deleteById("missing");
+                    () -> metadataService.deleteById("missing", TENANT_ID));
+                verify(repository, never()).deleteById("missing", TENANT_ID);
                 reset(repository);
             });
 
