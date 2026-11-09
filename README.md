@@ -21,22 +21,19 @@ Docker images are stored in Docker Hub, with CI/CD integration via GitHub Action
 
 ## Versioning
 
-**Current version:** 0.8.1
-- Fixed bugs in API and Swagger docs.
-- Added moderation enable for local uploads of images.
-- Fixed bug in image presigned URLs.
+**Current version:** 0.9.0
+- Added authentication, with JWT token.
+- Tenant isolation support for Images/Image metadata APIs.
+- Terraform provisioning of AWS Lambda and AWS Cognito, with local NO-OP.
+- Updated tests suites for authentication.
 
-**Previous version:** 0.8.0
-- Added content hashing with SHA-256 by default and optional SHA-512 or custom hash functions.
-- Reuse moderation labels for previously moderated identical image content.
-- Added unit tests for hashing and updated project-wide JaCoCo coverage reporting.
-- Added OpenAPI documentation and Swagger UI for the REST API.
-- Documented image upload, retrieval, metadata, replacement, and deletion endpoints.
+**Previous version:** 0.8.1
+Fixed bugs in API and Swagger docs.
+Added moderation enable for local uploads of images.
+Fixed bug in image presigned URLs.
 
-**Next version:** (0.9.0) Authentication and authorization in API with AWS Cognito and AWS Lambda, with JWT parsing and tenant isolation.
+**Next version:** (1.0.0) Updates to Terraform for real AWS provisioning, and testing against real AWS environment.
 
-**Future version:**
-- Updates to Terraform for real AWS provisioning.
 - Logging.
 - Integration/Component tests.
 - Compute support from AWS ECS.
@@ -95,7 +92,8 @@ The DynamoDB table uses `tenantId` as its partition key and `imageId` as its sor
 | Build | Gradle, **Terraform** |
 | Containers | **Docker**, Docker Compose |
 | CI/CD (GitHub) | **Actions**, CoPilot Agent, Workflows |
-| Cloud (AWS) | **DynamoDB**, **S3**, **Rekognition**, Localstack |
+| Cloud (AWS) | **DynamoDB**, **S3**, **Rekognition**, **Lambda**, **Cognito**, Localstack |
+| Security | **OAuth2**, **JWT** |
 
 ---
 
