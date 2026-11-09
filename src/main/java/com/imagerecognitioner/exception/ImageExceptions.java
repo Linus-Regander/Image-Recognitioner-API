@@ -36,4 +36,10 @@ public final class ImageExceptions {
             super("Image moderation failed. Detected inappropriate content with labels: " + labels);
         }
     }
+
+    public static class MissingAuthenticationParameterException extends RuntimeException {
+        public MissingAuthenticationParameterException(String parameter) {
+            super("Missing required authentication parameter: " + parameter);
+        }
+    }
 }

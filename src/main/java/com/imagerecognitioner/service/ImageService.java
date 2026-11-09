@@ -57,18 +57,20 @@ public class ImageService {
     /**
      * Selects image metadata from DynamoDB.
      * @param imageId the ID of the image metadata to retrieve
+     * @param tenantId the ID of the tenant
      * @return the ImageMetadata object
      */
-    public ImageMetadata selectImageMetadata(String imageId) {
-        return imageMetadataService.findById(imageId);
+    public ImageMetadata selectImageMetadata(String tenantId, String imageId) {
+        return imageMetadataService.findById(imageId, tenantId);
     }
  
     /**
      * Selects all image metadata from DynamoDB.
+     * @param tenantId the ID of the tenant
      * @return a list of all ImageMetadata objects
      */
-    public List<ImageMetadata> selectAllImageMetadata() {
-        return imageMetadataService.findAll();
+    public List<ImageMetadata> selectAllImageMetadata(String tenantId) {
+        return imageMetadataService.findAll(tenantId);
     }
  
     /**
@@ -76,9 +78,14 @@ public class ImageService {
      * If an identical image has already been moderated, its labels are reused and moderation is skipped.
      * @param file the image file to upload
      * @param owner the owner of the image
+     * @param minConfidence the minimum confidence level for moderation (optional)
      * @return the metadata of the published image
      */
-    public ImageMetadata publishImage(MultipartFile file, String owner, Float minConfidence) {
+    public ImageMetadata publishImage(String tenantId, MultipartFile file, String owner, Float minConfidence) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new ImageExceptions.MissingAuthenticationParameterException("tenantId");
+        }
+
         String id = UUID.randomUUID().toString();
         String key = buildKey(owner, id, file.getOriginalFilename());
         String imageHash = calculateHash(file);
@@ -91,7 +98,7 @@ public class ImageService {
                     ? found.get().getLabels()
                     : moderate(key, minConfidence);
  
-            return imageMetadataService.create(extractMetadata(file, owner, id, key, imageHash, labels));
+            return imageMetadataService.create(extractMetadata(tenantId, file, owner, id, key, imageHash, labels));
         } catch (AwsServiceException | SdkClientException e) {
             imageStorageService.delete(key);
  
@@ -104,10 +111,11 @@ public class ImageService {
      * If an identical image has already been moderated, its labels are reused and moderation is skipped.
      * @param file the new image file to upload
      * @param imageId the ID of the existing image to replace
+     * @param minConfidence the minimum confidence level for moderation (optional)
      * @return the updated metadata of the replaced image
      */
-    public ImageMetadata replaceImage(MultipartFile file, String imageId, Float minConfidence) {
-        ImageMetadata existingMetadata = imageMetadataService.findById(imageId);
+    public ImageMetadata replaceImage(String tenantId, MultipartFile file, String imageId, Float minConfidence) {
+        ImageMetadata existingMetadata = imageMetadataService.findById(imageId, tenantId);
         String key = existingMetadata.getS3Key();
         String imageHash = calculateHash(file);
         var found = findByHash(imageHash);
@@ -135,17 +143,18 @@ public class ImageService {
             }
         }
  
-        return imageMetadataService.updateImageContent(imageId, extractMetadata(file, existingMetadata.getOwner(), imageId, key, imageHash, labels));
+        return imageMetadataService.updateImageContent(tenantId, imageId, extractMetadata(tenantId, file, existingMetadata.getOwner(), imageId, key, imageHash, labels));
     }
  
     /**
      * Selects an image by retrieving its metadata from DynamoDB and generating a presigned URL for access from S3.
      * @param imageId the ID of the image to select
      * @param expiry the duration for which the presigned URL should be valid
+     * @param tenantId the ID of the tenant
      * @return an Image object containing the metadata and presigned URL
      */
-    public ImageResponse selectImage(String imageId, Duration expiry) {
-        ImageMetadata metadata = imageMetadataService.findById(imageId);
+    public ImageResponse selectImage(String tenantId, String imageId, Duration expiry) {
+        ImageMetadata metadata = imageMetadataService.findById(imageId, tenantId);
  
         String key = metadata.getS3Key();
  
@@ -163,31 +172,35 @@ public class ImageService {
      * Updates the metadata of an existing image in DynamoDB.
      * @param imageId the ID of the existing image to update
      * @param imageMetadata the new metadata to update
+     * @param tenantId the ID of the tenant
      * @return the updated metadata of the image
      */
-    public ImageMetadata updateMetadata(String imageId, ImageMetadata imageMetadata) {
-        return imageMetadataService.update(imageId, imageMetadata);
+    public ImageMetadata updateMetadata(String tenantId, String imageId, ImageMetadata imageMetadata) {
+        return imageMetadataService.update(tenantId, imageId, imageMetadata);
     }
  
     /**
      * Deletes an image by removing it from S3 and deleting its metadata from DynamoDB.
      * @param imageId the ID of the image to delete
+     * @param tenantId the ID of the tenant to which the image belongs
      */
-    public void deleteImage(String imageId) {
-        ImageMetadata existingMetadata = imageMetadataService.findById(imageId);
+    public void deleteImage(String tenantId, String imageId) {
+        ImageMetadata existingMetadata = imageMetadataService.findById(imageId, tenantId);
         String key = existingMetadata.getS3Key();
  
         imageStorageService.delete(key);
-        imageMetadataService.deleteById(imageId);
+        imageMetadataService.deleteById(imageId, tenantId);
     }
 
     //
     // Private helper methods.
     //
  
-    private ImageMetadata extractMetadata(MultipartFile file, String owner, String id, String key, String imageHash, List<ImageLabel> labels) {
+    private ImageMetadata extractMetadata(String tenantId, MultipartFile file, String owner, String id, String key, String imageHash, List<ImageLabel> labels) {
         ImageMetadata metadata = new ImageMetadata();
  
+        var now = Instant.now();
+
         metadata.setImageId(id);
         metadata.setS3Key(key);
         metadata.setS3Bucket(bucketName);
@@ -196,9 +209,11 @@ public class ImageService {
         metadata.setContentType(file.getContentType());
         metadata.setSizeBytes(file.getSize());
         metadata.setOwner(owner);
-        metadata.setCreatedAt(Instant.now());
+        metadata.setCreatedAt(now);
+        metadata.setUpdatedAt(now);
         metadata.setImageStatus(ImageStatus.PENDING);
         metadata.setLabels(labels);
+        metadata.setTenantId(tenantId);
  
         return metadata;
     }

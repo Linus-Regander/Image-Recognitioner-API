@@ -40,8 +40,10 @@ public class ImageMetadataRepository implements ImageMetadataRepositoryInterface
      * @return a list of all ImageMetadata objects
      */
     @Override
-    public List<ImageMetadata> findAll() {
-        return imageMetadataTable.scan().items().stream().toList();
+    public List<ImageMetadata> findAll(String tenantId) {
+        return imageMetadataTable
+            .query(QueryConditional.keyEqualTo(k -> k.partitionValue(tenantId)))
+            .items().stream().toList();
     }
 
     /**
@@ -50,8 +52,8 @@ public class ImageMetadataRepository implements ImageMetadataRepositoryInterface
      * @return an Optional containing the ImageMetadata object if found, or empty if not found
      */
     @Override
-    public Optional<ImageMetadata> findById(String imageId) {
-        return Optional.ofNullable(imageMetadataTable.getItem(r -> r.key(k -> k.partitionValue(imageId))));
+    public Optional<ImageMetadata> findById(String imageId, String tenantId) {
+        return Optional.ofNullable(imageMetadataTable.getItem(r -> r.key(k -> k.partitionValue(tenantId).sortValue(imageId))));
     }
 
     @Override
@@ -68,7 +70,7 @@ public class ImageMetadataRepository implements ImageMetadataRepositoryInterface
      * @param imageId the ID of the ImageMetadata object to delete
      */
     @Override
-    public void deleteById(String imageId) {
-        imageMetadataTable.deleteItem(r -> r.key(k -> k.partitionValue(imageId)));
+    public void deleteById(String imageId, String tenantId) {
+        imageMetadataTable.deleteItem(r -> r.key(k -> k.partitionValue(tenantId).sortValue(imageId)));
     }
 }

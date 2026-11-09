@@ -70,6 +70,23 @@ Run the full test suite and generate JaCoCo coverage reports with:
 
 The HTML report is generated at `build/reports/jacoco/test/html/index.html`; the XML report is generated at `build/reports/jacoco/test/jacocoTestReport.xml`.
 
+## Local development and AWS provisioning
+
+Docker Compose starts LocalStack with DynamoDB, S3, and Rekognition. The app uses the `local` Spring profile and an explicitly enabled no-op authentication chain, assigning requests to the fixed `local-tenant`. Do not enable this setting in an AWS deployment.
+
+Terraform defaults to AWS. Run `make terraform-plan` and `make terraform-apply` to use the separate `aws` workspace. The apply creates DynamoDB, S3, the Cognito user pool and client, and the pre-token-generation Lambda. It writes the resulting app settings to the ignored `terraform/cognito.env` file. To run the app locally against AWS, export the generated settings and start it without the `local` profile:
+
+```bash
+set -a
+. terraform/cognito.env
+set +a
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
+```
+
+The generated configuration leaves AWS service endpoints unset so the AWS SDK uses AWS endpoints, and sets the exact bucket and table names returned by Terraform. Supply AWS credentials and an execution role with the generated `app_policy_arn` permissions to the app runtime. LocalStack uses a separate `local` Terraform workspace and is not provisioned with Cognito or Lambda. Keep Terraform state files and generated environment files private and do not commit them.
+
+The DynamoDB table uses `tenantId` as its partition key and `imageId` as its sort key. Changing an existing table's primary key forces Terraform to replace the table. Back up or migrate any existing data before applying this schema change to a populated AWS environment.
+
 ## Tech Stack
 | Category | Tools |
 |---|---|

@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ImageServiceTest {
+    private static final String TENANT_ID = "tenant-1";
 
     @Mock
     private ImageStorageService imageStorageService;
@@ -75,9 +76,9 @@ class ImageServiceTest {
     }
 
     private void selectMetadata(String imageId, ImageMetadata result) {
-        when(imageMetadataService.findById(imageId)).thenReturn(result);
-        assertSame(result, imageService.selectImageMetadata(imageId));
-        verify(imageMetadataService).findById(imageId);
+        when(imageMetadataService.findById(imageId, TENANT_ID)).thenReturn(result);
+        assertSame(result, imageService.selectImageMetadata(TENANT_ID, imageId));
+        verify(imageMetadataService).findById(imageId, TENANT_ID);
         reset(imageMetadataService);
     }
 
@@ -86,15 +87,15 @@ class ImageServiceTest {
         Map<String, ServiceTestCase> testCases = Map.of(
             "populated result", () -> {
                 List<ImageMetadata> result = List.of(metadata("img-1", "key", "owner"));
-                when(imageMetadataService.findAll()).thenReturn(result);
-                assertSame(result, imageService.selectAllImageMetadata());
-                verify(imageMetadataService).findAll();
+                when(imageMetadataService.findAll(TENANT_ID)).thenReturn(result);
+                assertSame(result, imageService.selectAllImageMetadata(TENANT_ID));
+                verify(imageMetadataService).findAll(TENANT_ID);
                 reset(imageMetadataService);
             },
             "empty result", () -> {
-                when(imageMetadataService.findAll()).thenReturn(List.of());
-                assertEquals(List.of(), imageService.selectAllImageMetadata());
-                verify(imageMetadataService).findAll();
+                when(imageMetadataService.findAll(TENANT_ID)).thenReturn(List.of());
+                assertEquals(List.of(), imageService.selectAllImageMetadata(TENANT_ID));
+                verify(imageMetadataService).findAll(TENANT_ID);
                 reset(imageMetadataService);
             });
 
@@ -116,7 +117,7 @@ class ImageServiceTest {
         ImageMetadata created = metadata("created", "created-key", owner);
         when(imageMetadataService.create(any(ImageMetadata.class))).thenReturn(created);
 
-        assertSame(created, imageService.publishImage(file, owner, null));
+        assertSame(created, imageService.publishImage(TENANT_ID, file, owner, null));
 
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         verify(imageStorageService).upload(key.capture(), argThat(actual -> actual == file));
@@ -127,6 +128,7 @@ class ImageServiceTest {
         assertEquals(extension, extensionOf(actualKey));
         ImageMetadata actual = captured.getValue();
         assertEquals(owner, actual.getOwner());
+        assertEquals(TENANT_ID, actual.getTenantId());
         assertEquals(file.getOriginalFilename(), actual.getFileName());
         assertEquals("image/jpeg", actual.getContentType());
         assertEquals(5L, actual.getSizeBytes());
@@ -154,7 +156,7 @@ class ImageServiceTest {
                 .thenReturn(new ModerationResult(true, labels));
 
         assertThrows(ImageExceptions.ImageModerationException.class,
-                () -> imageService.publishImage(file, "alice", null));
+                () -> imageService.publishImage(TENANT_ID, file, "alice", null));
 
         verify(imageStorageService).delete(argThat(key -> key.startsWith("images/alice/")));
         verify(imageMetadataService, org.mockito.Mockito.never()).create(any());
@@ -170,7 +172,7 @@ class ImageServiceTest {
         ImageMetadata created = metadata("new-image", "images/alice/new-image.jpg", "alice");
         when(imageMetadataService.create(any(ImageMetadata.class))).thenReturn(created);
 
-        assertSame(created, imageService.publishImage(file, "alice", null));
+        assertSame(created, imageService.publishImage(TENANT_ID, file, "alice", null));
 
         verify(imageStorageService).upload(anyString(), any());
         ArgumentCaptor<ImageMetadata> captured = ArgumentCaptor.forClass(ImageMetadata.class);
@@ -184,7 +186,7 @@ class ImageServiceTest {
         MultipartFile file = file("photo.png", "image/png", "bytes");
         when(imageMetadataService.create(any(ImageMetadata.class))).thenThrow(failure);
 
-        assertThrows(failure.getClass(), () -> imageService.publishImage(file, "alice", null));
+        assertThrows(failure.getClass(), () -> imageService.publishImage(TENANT_ID, file, "alice", null));
 
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         verify(imageStorageService).upload(key.capture(), argThat(actual -> actual == file));
@@ -197,17 +199,18 @@ class ImageServiceTest {
         ImageMetadata existing = metadata("img-1", "images/alice/img-1.jpg", "alice");
         MultipartFile file = file("new.png", "image/png", "new-bytes");
         ImageMetadata updated = metadata("img-1", existing.getS3Key(), "alice");
-        when(imageMetadataService.findById("img-1")).thenReturn(existing);
-        when(imageMetadataService.updateImageContent(eq("img-1"), any(ImageMetadata.class))).thenReturn(updated);
+        when(imageMetadataService.findById("img-1", TENANT_ID)).thenReturn(existing);
+        when(imageMetadataService.updateImageContent(eq(TENANT_ID), eq("img-1"), any(ImageMetadata.class))).thenReturn(updated);
 
-        assertSame(updated, imageService.replaceImage(file, "img-1", null));
+        assertSame(updated, imageService.replaceImage(TENANT_ID, file, "img-1", null));
 
         verify(imageStorageService).replace(existing.getS3Key(), file);
         ArgumentCaptor<ImageMetadata> replacement = ArgumentCaptor.forClass(ImageMetadata.class);
-        verify(imageMetadataService).updateImageContent(eq("img-1"), replacement.capture());
+        verify(imageMetadataService).updateImageContent(eq(TENANT_ID), eq("img-1"), replacement.capture());
         assertEquals(existing.getOwner(), replacement.getValue().getOwner());
         assertEquals(existing.getS3Key(), replacement.getValue().getS3Key());
         assertEquals("new.png", replacement.getValue().getFileName());
+        assertEquals(TENANT_ID, replacement.getValue().getTenantId());
         org.junit.jupiter.api.Assertions.assertNotNull(replacement.getValue().getContentHash());
     }
 
@@ -216,10 +219,10 @@ class ImageServiceTest {
         ImageMetadata metadata = metadata("img-1", "images/alice/img-1.jpg", "alice");
         Duration expiry = Duration.ofMinutes(5);
         URL url = new URL("https://example.test/img-1");
-        when(imageMetadataService.findById("img-1")).thenReturn(metadata);
+        when(imageMetadataService.findById("img-1", TENANT_ID)).thenReturn(metadata);
         when(imageStorageService.getPresignedUrl(metadata.getS3Key(), expiry)).thenReturn(url);
 
-        ImageResponse result = imageService.selectImage("img-1", expiry);
+        ImageResponse result = imageService.selectImage(TENANT_ID, "img-1", expiry);
 
         assertSame(metadata, result.getImageMetadata());
         assertEquals(url, result.getPresignedUrl());
@@ -230,21 +233,21 @@ class ImageServiceTest {
     void updateMetadata_delegatesUpdate() {
         ImageMetadata patch = metadata(null, null, null);
         ImageMetadata updated = metadata("img-1", "key", "owner");
-        when(imageMetadataService.update("img-1", patch)).thenReturn(updated);
+        when(imageMetadataService.update(TENANT_ID, "img-1", patch)).thenReturn(updated);
 
-        assertSame(updated, imageService.updateMetadata("img-1", patch));
-        verify(imageMetadataService).update("img-1", patch);
+        assertSame(updated, imageService.updateMetadata(TENANT_ID, "img-1", patch));
+        verify(imageMetadataService).update(TENANT_ID, "img-1", patch);
     }
 
     @Test
     void deleteImage_deletesStorageBeforeMetadata() {
         ImageMetadata existing = metadata("img-1", "images/alice/img-1.jpg", "alice");
-        when(imageMetadataService.findById("img-1")).thenReturn(existing);
+        when(imageMetadataService.findById("img-1", TENANT_ID)).thenReturn(existing);
 
-        imageService.deleteImage("img-1");
+        imageService.deleteImage(TENANT_ID, "img-1");
 
         verify(imageStorageService).delete(existing.getS3Key());
-        verify(imageMetadataService).deleteById("img-1");
+        verify(imageMetadataService).deleteById("img-1", TENANT_ID);
     }
 
     private MultipartFile file(String filename, String contentType, String content) {

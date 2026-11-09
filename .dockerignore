@@ -8,6 +8,8 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/*.tfvars
+terraform/build/
+terraform/cognito.env
 
 # Git
 .git/
